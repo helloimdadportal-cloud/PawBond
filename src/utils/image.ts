@@ -44,7 +44,7 @@ const loadImage = (dataUrl: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new ImageProcessingError('That file doesn\u2019t look like a valid image.'));
+    img.onerror = () => reject(new ImageProcessingError('That file does not look like a valid image.'));
     img.src = dataUrl;
   });
 };
@@ -81,7 +81,7 @@ export const compressImageFile = async (
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    // Canvas unsupported for some reason \u2014 fall back to the original image
+    // Canvas unsupported for some reason - fall back to the original image
     // rather than blocking the user from saving their memory at all.
     return rawDataUrl;
   }
