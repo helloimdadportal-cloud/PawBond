@@ -60,6 +60,7 @@ export default function App() {
   const [challenges, setChallenges] = useState<BondingChallenge[]>(() => loadStoredChallenges());
   const [badges, setBadges] = useState<AchievementBadge[]>(() => loadStoredBadges());
   const [settings, setSettings] = useState<UserSettings>(() => loadStoredSettings());
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
   // Navigation & Modals
   const [currentTab, setCurrentTab] = useState<TabType>('home');
@@ -111,7 +112,12 @@ export default function App() {
   }, [activePetId]);
 
   useEffect(() => {
-    saveStoredEntries(entries);
+    const saved = saveStoredEntries(entries);
+    if (!saved) {
+      setStorageWarning(
+        "Your device's storage is full, so this memory couldn't be saved. Try deleting an old photo memory to free up space."
+      );
+    }
   }, [entries]);
 
   useEffect(() => {
@@ -321,6 +327,23 @@ export default function App() {
     <div className={`min-h-screen ${getThemeBackground()} flex flex-col items-center justify-start text-stone-800 transition-colors duration-300 font-['Plus_Jakarta_Sans',sans-serif]`}>
       {/* Mobile-first centered app shell */}
       <div className="w-full max-w-md min-h-screen min-h-[100dvh] flex flex-col bg-[#FAF7F2] sm:shadow-2xl relative sm:border-x sm:border-amber-900/10">
+        {/* Storage full warning — shown when a save to localStorage fails */}
+        {storageWarning && (
+          <div className="px-3 pt-2.5 sm:px-4">
+            <div className="flex items-start gap-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-3 py-2.5">
+              <span className="flex-1">{storageWarning}</span>
+              <button
+                type="button"
+                onClick={() => setStorageWarning(null)}
+                className="font-bold text-rose-500 hover:text-rose-700 shrink-0"
+                aria-label="Dismiss warning"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Sticky Header */}
         <Header
           pet={activePet}
