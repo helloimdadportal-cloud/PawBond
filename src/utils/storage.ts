@@ -98,11 +98,38 @@ export const loadStoredEntries = (): DailyEntry[] => {
   }
 };
 
-export const saveStoredEntries = (entries: DailyEntry[]) => {
+/**
+ * Detects the classic "storage quota exceeded" error across browsers.
+ * Names/codes differ (Chrome/Edge vs Firefox vs Safari), so we check both.
+ */
+const isQuotaExceededError = (e: unknown): boolean => {
+  if (!(e instanceof DOMException)) return false;
+  return (
+    e.name === 'QuotaExceededError' ||
+    e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    e.code === 22 ||
+    e.code === 1014
+  );
+};
+
+/**
+ * Saves entries to localStorage. Returns true on success, false if the
+ * save failed (most commonly because localStorage is full of base64
+ * photos). Callers should surface a visible warning on `false` instead
+ * of letting the save fail silently — otherwise a user can keep adding
+ * memories that look saved in the UI but never actually persist.
+ */
+export const saveStoredEntries = (entries: DailyEntry[]): boolean => {
   try {
     localStorage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(entries));
+    return true;
   } catch (e) {
-    console.error('Error saving entries', e);
+    if (isQuotaExceededError(e)) {
+      console.error('Storage full: could not save entries', e);
+    } else {
+      console.error('Error saving entries', e);
+    }
+    return false;
   }
 };
 
