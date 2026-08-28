@@ -116,7 +116,7 @@ const isQuotaExceededError = (e: unknown): boolean => {
  * Saves entries to localStorage. Returns true on success, false if the
  * save failed (most commonly because localStorage is full of base64
  * photos). Callers should surface a visible warning on `false` instead
- * of letting the save fail silently — otherwise a user can keep adding
+ * of letting the save fail silently - otherwise a user can keep adding
  * memories that look saved in the UI but never actually persist.
  */
 export const saveStoredEntries = (entries: DailyEntry[]): boolean => {
