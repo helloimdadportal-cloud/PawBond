@@ -4,6 +4,7 @@ import { X, Camera, Image as ImageIcon, Sparkles, Check, Heart, Tag } from 'luci
 import { DailyEntry, MoodType, Pet } from '../types';
 import { MOOD_OPTIONS, SAMPLE_PET_PHOTOS } from '../data/mockData';
 import { triggerCozyConfetti } from '../utils/confetti';
+import { compressImageFile, ImageProcessingError } from '../utils/image';
 
 interface AddMomentModalProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export const AddMomentModal: React.FC<AddMomentModalProps> = ({
   );
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [customPhotoInput, setCustomPhotoInput] = useState('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync state whenever modal opens or existingEntry / initial props change
@@ -77,16 +80,28 @@ export const AddMomentModal: React.FC<AddMomentModalProps> = ({
     }
   }, [isOpen, existingEntry, initialMood, initialActivity, initialCaption, initialPhoto]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setSelectedPhoto(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setPhotoError(null);
+    setIsProcessingPhoto(true);
+    try {
+      // Downscale + re-encode before it ever touches state/localStorage,
+      // otherwise a handful of full-size phone photos can quietly blow
+      // the localStorage quota and future saves fail silently.
+      const compressed = await compressImageFile(file);
+      setSelectedPhoto(compressed);
+    } catch (err) {
+      const message =
+        err instanceof ImageProcessingError
+          ? err.message
+          : 'Could not process that photo. Please try a different one.';
+      setPhotoError(message);
+    } finally {
+      setIsProcessingPhoto(false);
+      // Allow re-selecting the same file again later
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -215,13 +230,21 @@ export const AddMomentModal: React.FC<AddMomentModalProps> = ({
                     </div>
                   )}
 
+                  {isProcessingPhoto && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-[11px] font-semibold text-stone-600">Optimizing photo\u2026</p>
+                    </div>
+                  )}
+
                   {/* Upload overlay button */}
                   <div className="absolute bottom-3 right-3 flex items-center gap-2">
                     <button
                       type="button"
                       id="upload-custom-photo-button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-sm text-stone-800 text-xs font-semibold shadow-md hover:bg-white flex items-center gap-1.5 transition-all active:scale-95"
+                      disabled={isProcessingPhoto}
+                      className="px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-sm text-stone-800 text-xs font-semibold shadow-md hover:bg-white flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-60"
                     >
                       <Camera className="w-4 h-4 text-amber-600" />
                       <span>{selectedPhoto ? 'Change Photo' : 'Upload Photo'}</span>
@@ -244,6 +267,12 @@ export const AddMomentModal: React.FC<AddMomentModalProps> = ({
                     />
                   </div>
                 </div>
+
+                {photoError && (
+                  <p className="text-[11px] font-semibold text-rose-600 pt-1.5">
+                    {photoError}
+                  </p>
+                )}
 
                 {showUrlInput && (
                   <div className="flex items-center gap-1.5 pt-2">
@@ -466,7 +495,7 @@ export const AddMomentModal: React.FC<AddMomentModalProps> = ({
                 <button
                   type="submit"
                   id="save-moment-submit-button"
-                  disabled={!caption.trim()}
+                  disabled={!caption.trim() || isProcessingPhoto}
                   className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold shadow-md shadow-amber-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm"
                 >
                   <Sparkles className="w-4 h-4 fill-amber-200" />
